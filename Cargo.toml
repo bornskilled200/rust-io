@@ -1,0 +1,12 @@
+[package]
+name = "pms5003"
+version = "0.1.0"
+authors = ["David Park <David.Park@agoda.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.2.1"
+futures = "0.3"
