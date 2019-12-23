@@ -1,0 +1,101 @@
+<html>
+
+<head>
+  <title>Express</title>
+  <link rel="stylesheet" href="/stylesheets/style.css">
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+
+<body>
+  <input type="number" placeholder="5000" oninput="updatePlot(event.target.value)">
+  <div id="air" class="plotly-frame"></div>
+
+  <script>
+    const airDiv = document.getElementById('air');
+    const table = [
+      [0, 12, 0, 50],
+      [12.1, 35.4, 51, 100],
+      [35.5, 55.4, 101, 150],
+      [55.5, 150.4, 151, 200],
+      [150.5, 250.4, 201, 300],
+      [250.5, 350.4, 301, 400],
+      [350.5, 500.4, 401, 500],
+    ];
+    function getAqi(pm25) {
+      for (aqi of table) {
+        if (pm25 < aqi[1]) {
+          return aqi;
+        }
+      }
+      return [];
+    }
+
+    Plotly.newPlot(
+      airDiv,
+      [],
+      {
+        margin: { t: 30 },
+        title: 'Air Quality (Higher is better)',
+        yaxis: {
+          side: 'right',
+        },
+      },
+    );
+
+    function updatePlot(results) {
+      fetch(`conditions?results=${results}`)
+        .then(response => response.json())
+        .then(conditions => {
+          const x = conditions.map(condition => new Date(condition.time * 1000));
+          const conditionsR = conditions.slice(0).reverse();
+          let level = conditionsR[0].air;
+          let trend = conditionsR[1].air - conditionsR[0].air;
+          const ALPHA = .15;
+          const BETA = .2;
+          Plotly.react(
+            airDiv,
+            [
+              {
+                x,
+                y: conditions.map(condition => condition.air),
+                name: 'Air Quality (Ohms)',
+              },
+              {
+                x,
+                y: conditionsR.map((condition, index) => {
+                  const [minC, maxC, minI, maxI] = getAqi(condition.air);
+                  return (maxI - minI) / (maxC - minC) * (condition.air - minC) + minI;
+                }).reverse(),
+                name: 'US AQI',
+              },
+              {
+                x,
+                y: conditionsR.map((condition, index) => {
+                  if (index === 0) {
+                    return condition.air;
+                  }
+                  const lastLevel = level;
+                  const value = condition.air;
+                  level = ALPHA * value + (1-ALPHA) * (level + trend);
+                  trend = BETA * (level - lastLevel) + (1 - BETA) * trend;
+
+                  return level + trend;
+                }).reverse(),
+                name: 'Smoothing',
+              },
+            ],
+            {
+              margin: { t: 30 },
+              title: 'Air Quality (Higher is better)',
+              yaxis: {
+                side: 'right',
+              },
+            },
+          );
+        });
+    }
+    updatePlot();
+  </script>
+</body>
+
+</html>
