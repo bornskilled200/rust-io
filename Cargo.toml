@@ -13,3 +13,5 @@ thruster ={ version = "0.7.18", features = ["thruster_async_await", "thruster_er
 tokio = "0.2.0-alpha.5"
 tokio-diesel = "0.2.0"
 backtrace = "0.3.40"
+diesel = { version = "1.4.0", features = ["sqlite", "chrono"] }
+lazy_static = "1.4.0"

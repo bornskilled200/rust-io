@@ -1,18 +1,32 @@
 #![feature(proc_macro_hygiene)]
 
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate lazy_static;
+
 use serde::{Serialize, Deserialize};
 
 use thruster::{MiddlewareNext, MiddlewareReturnValue, MiddlewareResult};
-use thruster::{App, BasicContext as Ctx, Request};
+use thruster::{App, BasicContext as Ctx, Request, map_try};
 use thruster::thruster_middleware::send::file;
 use thruster::server::Server;
 use thruster::ThrusterServer;
 use thruster::thruster_proc::{async_middleware, middleware_fn};
+use diesel::{
+    prelude::*,
+    sqlite::SqliteConnection,
+    table,
+};
+use tokio_diesel::*;
+use std::time::{SystemTime, UNIX_EPOCH};
+use thruster::errors::ThrusterError;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Data {
-    particles: i32,
-    time: i32,
+    time: u128,
+    uptime: u128,
+    air: f64,
 }
 
 #[derive(Debug)]
@@ -36,10 +50,36 @@ async fn stylesheet(context: Ctx, _next: MiddlewareNext<Ctx>) ->  MiddlewareResu
     Ok(file(context, "public/stylesheets/style.css"))
 }
 
+#[derive(Queryable, Debug)]
+struct Condition {
+    id: i32,
+    time: i32,
+    uptime: i32,
+    air: f32,
+}
+
+table! {
+    conditions {
+        id -> Integer,
+        time -> Integer,
+        uptime -> Integer,
+        air -> Float,
+    }
+}
+
 #[middleware_fn]
-async fn conditions(mut context: Ctx, _next: MiddlewareNext<Ctx>) -> MiddlewareResult<Ctx> {
+async fn conditions_handler(mut context: Ctx, _next: MiddlewareNext<Ctx>) -> MiddlewareResult<Ctx> {
+    use crate::conditions::columns::{id, time, uptime, air};
     context.status(404);
-    context.body("Whoops! That route doesn't exist!");
+    let connection = map_try!(SqliteConnection::establish("bme2.db"), Err(err) => {
+        ThrusterError { context, cause: Some(Box::new(err)), message: "connection".into(), status: 1 }
+    });
+    let x = map_try!(conditions::table.load::<Condition>(&connection), Err(err) => {
+        ThrusterError { context, cause: Some(Box::new(err)), message: "connection".into(), status: 1 }
+    });
+    context.body(&format!("{:?}", x));
+
+
     Ok(context)
 }
 
@@ -56,6 +96,7 @@ fn main() {
         app.set404(async_middleware!(Ctx, [four_oh_four]));
         app.get("/", async_middleware!(Ctx, [index]));
         app.get("/stylesheets/style.css", async_middleware!(Ctx, [stylesheet]));
+        app.get("/conditions", async_middleware!(Ctx, [conditions_handler]));
         app
     };
 
