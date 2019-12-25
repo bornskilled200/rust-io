@@ -15,12 +15,13 @@ use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use thruster::errors::ThrusterError;
 use std::sync::{Mutex};
 use std::thread;
+use std::process::Command;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Condition {
     time: u64,
     uptime: u64,
-    air: f64,
+    air: i64,
 }
 
 #[middleware_fn]
@@ -61,20 +62,26 @@ fn main() {
     let start = SystemTime::now();
 
     thread::spawn(move || {
-        for i in 1..20 {
-            let now = SystemTime::now();
+        loop {
+            Command::new("/usr/local/lib/airpi/pms5003").output().unwrap();
+            let output = Command::new("/usr/local/lib/airpi/pms5003")
+                .arg("pm2.5")
+                .output()
+                .unwrap();
+            let air: i64 = str::from_utf8(&output.stdout).unwrap().parse().unwrap();
             if let Ok(mut vector) = DATA.lock() {
+                let now = SystemTime::now();
                 if vector.len() > 10 {
                     vector.remove(0);
                 }
                 vector.push(Condition {
                     time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
                     uptime: now.duration_since(start).unwrap().as_secs(),
-                    air: i as f64,
+                    air,
                 });
             }
 
-            thread::sleep(Duration::from_secs(i));
+            thread::sleep(Duration::from_secs(10 * 5));
         };
     });
     let app: App<Request, Context> = {
