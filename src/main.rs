@@ -63,22 +63,27 @@ fn main() {
 
     thread::spawn(move || {
         loop {
-            Command::new("/usr/local/lib/airpi/pms5003").output().unwrap();
-            let output = Command::new("/usr/local/lib/airpi/pms5003")
-                .arg("pm2.5")
-                .output()
-                .unwrap();
-            let air: i64 = str::from_utf8(&output.stdout).unwrap().parse().unwrap();
+            let air: i64 = if cfg!(target_os = "windows") {
+                1
+            } else {
+                Command::new("/usr/local/lib/airpi/pms5003").output().unwrap();
+                let output = Command::new("/usr/local/lib/airpi/pms5003")
+                    .arg("pm2.5")
+                    .output()
+                    .unwrap();
+                std::str::from_utf8(&output.stdout).unwrap().parse().unwrap()
+            };
+            let now = SystemTime::now();
+            let condition = Condition {
+                time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                uptime: now.duration_since(start).unwrap().as_secs(),
+                air,
+            };
             if let Ok(mut vector) = DATA.lock() {
-                let now = SystemTime::now();
                 if vector.len() > 10 {
                     vector.remove(0);
                 }
-                vector.push(Condition {
-                    time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                    uptime: now.duration_since(start).unwrap().as_secs(),
-                    air,
-                });
+                vector.push(condition);
             }
 
             thread::sleep(Duration::from_secs(10 * 5));
