@@ -16,6 +16,8 @@ use thruster::errors::ThrusterError;
 use std::sync::{Mutex};
 use std::thread;
 use std::process::Command;
+use std::fs::File;
+use std::io::{BufReader, Write};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Condition {
@@ -59,8 +61,14 @@ async fn four_oh_four(mut context: Context, _next: MiddlewareNext<Context>) -> M
 }
 
 fn main() {
+    if let Ok(file) = File::open("db.json") {
+        if let Ok(mut data) = serde_json::from_reader::<BufReader<File>, Vec<Condition>>(BufReader::new(file)) {
+            if let Ok(mut vector) = DATA.lock() {
+                vector.append(&mut data);
+            }
+        }
+    }
     let start = SystemTime::now();
-
     thread::spawn(move || {
         loop {
             let air: i64 = if cfg!(target_os = "windows") {
@@ -79,12 +87,23 @@ fn main() {
                 uptime: now.duration_since(start).unwrap().as_secs(),
                 air,
             };
-            if let Ok(mut vector) = DATA.lock() {
-                if vector.len() > 10 {
-                    vector.remove(0);
+            let json: Vec<u8> = match DATA.lock() {
+                Ok(mut vector) => {
+                    if vector.len() > 5000 {
+                        vector.remove(0);
+                    }
+                    vector.push(condition);
+                    serde_json::to_vec(&*vector).unwrap()
                 }
-                vector.push(condition);
+                _ => Vec::new()
+            };
+            if !json.is_empty() {
+                if let Ok(mut file) = File::create("db.json") {
+//                    println!("writing")
+                    file.write_all(&json).unwrap();
+                }
             }
+
 
             thread::sleep(Duration::from_secs(60 * 15));
         };
