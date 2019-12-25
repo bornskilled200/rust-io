@@ -63,11 +63,16 @@ fn main() {
     thread::spawn(move || {
         for i in 1..20 {
             let now = SystemTime::now();
-            DATA.lock().unwrap().push(Condition {
-                time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                uptime: now.duration_since(start).unwrap().as_secs(),
-                air: i as f64,
-            });
+            if let Ok(mut vector) = DATA.lock() {
+                if vector.len() > 10 {
+                    vector.remove(0);
+                }
+                vector.push(Condition {
+                    time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    uptime: now.duration_since(start).unwrap().as_secs(),
+                    air: i as f64,
+                });
+            }
 
             thread::sleep(Duration::from_secs(i));
         };
