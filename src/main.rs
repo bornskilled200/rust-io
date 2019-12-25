@@ -66,12 +66,12 @@ fn main() {
             let air: i64 = if cfg!(target_os = "windows") {
                 1
             } else {
-                Command::new("/usr/local/lib/airpi/pms5003").output().unwrap();
-                let output = Command::new("/usr/local/lib/airpi/pms5003")
+                let output = Command::new("/usr/local/lib/airpi/pms5003-snmp")
                     .arg("pm2.5")
                     .output()
                     .unwrap();
-                std::str::from_utf8(&output.stdout).unwrap().parse().unwrap()
+                let string = std::str::from_utf8(&output.stdout).unwrap().trim_end();
+                string.parse().unwrap()
             };
             let now = SystemTime::now();
             let condition = Condition {
@@ -99,5 +99,5 @@ fn main() {
     };
 
     let server = Server::new(app);
-    server.start("0.0.0.0", 8080);
+    server.start("0.0.0.0", 3000);
 }
