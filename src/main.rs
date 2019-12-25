@@ -86,7 +86,7 @@ fn main() {
                 vector.push(condition);
             }
 
-            thread::sleep(Duration::from_secs(10 * 5));
+            thread::sleep(Duration::from_secs(60 * 15));
         };
     });
     let app: App<Request, Context> = {
