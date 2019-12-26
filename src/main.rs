@@ -62,6 +62,29 @@ async fn four_oh_four(mut context: Context, _next: MiddlewareNext<Context>) -> M
     Ok(context)
 }
 
+lazy_static! {
+    static ref START: SystemTime = SystemTime::now();
+}
+fn poll_condition() -> Condition {
+    let air: i64 = if cfg!(target_os = "windows") {
+        1
+    } else {
+        let output = Command::new("/usr/local/lib/airpi/pms5003-snmp")
+            .arg("pm2.5")
+            .output()
+            .unwrap();
+        let string = std::str::from_utf8(&output.stdout).unwrap().trim_end();
+        string.parse().unwrap()
+    };
+
+    let now = SystemTime::now();
+    Condition {
+        time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
+        uptime: now.duration_since(*START).unwrap().as_secs(),
+        air,
+    }
+}
+
 fn main() {
     if_chain! {
         if let Ok(file) = File::open("db.json");
@@ -71,25 +94,9 @@ fn main() {
             vector.append(&mut data);
         }
     }
-    let start = SystemTime::now();
     thread::spawn(move || {
         loop {
-            let air: i64 = if cfg!(target_os = "windows") {
-                1
-            } else {
-                let output = Command::new("/usr/local/lib/airpi/pms5003-snmp")
-                    .arg("pm2.5")
-                    .output()
-                    .unwrap();
-                let string = std::str::from_utf8(&output.stdout).unwrap().trim_end();
-                string.parse().unwrap()
-            };
-            let now = SystemTime::now();
-            let condition = Condition {
-                time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                uptime: now.duration_since(start).unwrap().as_secs(),
-                air,
-            };
+            let condition = poll_condition();
             let json: Result<Vec<u8>, std::sync::PoisonError<MutexGuard<Vec<Condition>>>> = DATA.lock().map(|mut vector| {
                 if vector.len() > 3000 {
                     vector.remove(0);
