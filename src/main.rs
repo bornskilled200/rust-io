@@ -96,8 +96,7 @@ fn poll_condition() -> Condition {
     }
 }
 
-fn main() {
-    load_database();
+fn start_polling() {
     thread::spawn({
         loop {
             let condition = poll_condition();
@@ -119,6 +118,11 @@ fn main() {
             thread::sleep(Duration::from_secs(60 * 15));
         };
     });
+}
+
+fn main() {
+    load_database();
+    start_polling();
     let app: App<Request, Context> = {
         let mut app = App::<Request, Context>::new_basic();
         app.set404(async_middleware!(Context, [four_oh_four]));
