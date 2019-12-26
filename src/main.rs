@@ -62,6 +62,17 @@ async fn four_oh_four(mut context: Context, _next: MiddlewareNext<Context>) -> M
     Ok(context)
 }
 
+fn load_database() {
+    if_chain! {
+        if let Ok(file) = File::open("db.json");
+        if let Ok(mut data) = serde_json::from_reader::<BufReader<File>, Vec<Condition>>(BufReader::new(file));
+        if let Ok(mut vector) = DATA.lock();
+        then {
+            vector.append(&mut data);
+        }
+    }
+}
+
 lazy_static! {
     static ref START: SystemTime = SystemTime::now();
 }
@@ -86,15 +97,8 @@ fn poll_condition() -> Condition {
 }
 
 fn main() {
-    if_chain! {
-        if let Ok(file) = File::open("db.json");
-        if let Ok(mut data) = serde_json::from_reader::<BufReader<File>, Vec<Condition>>(BufReader::new(file));
-        if let Ok(mut vector) = DATA.lock();
-        then {
-            vector.append(&mut data);
-        }
-    }
-    thread::spawn(move || {
+    load_database();
+    thread::spawn({
         loop {
             let condition = poll_condition();
             let json: Result<Vec<u8>, std::sync::PoisonError<MutexGuard<Vec<Condition>>>> = DATA.lock().map(|mut vector| {
