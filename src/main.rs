@@ -91,7 +91,7 @@ fn main() {
                 air,
             };
             let json: Result<Vec<u8>, std::sync::PoisonError<MutexGuard<Vec<Condition>>>> = DATA.lock().map(|mut vector| {
-                if vector.len() > 5000 {
+                if vector.len() > 3000 {
                     vector.remove(0);
                 }
                 vector.push(condition);
