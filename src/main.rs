@@ -2,6 +2,8 @@
 
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate if_chain;
 
 use serde::{Serialize, Deserialize};
 
@@ -13,7 +15,7 @@ use thruster::ThrusterServer;
 use thruster::thruster_proc::{async_middleware, middleware_fn};
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use thruster::errors::ThrusterError;
-use std::sync::{Mutex};
+use std::sync::{Mutex, MutexGuard};
 use std::thread;
 use std::process::Command;
 use std::fs::File;
@@ -61,11 +63,12 @@ async fn four_oh_four(mut context: Context, _next: MiddlewareNext<Context>) -> M
 }
 
 fn main() {
-    if let Ok(file) = File::open("db.json") {
-        if let Ok(mut data) = serde_json::from_reader::<BufReader<File>, Vec<Condition>>(BufReader::new(file)) {
-            if let Ok(mut vector) = DATA.lock() {
-                vector.append(&mut data);
-            }
+    if_chain! {
+        if let Ok(file) = File::open("db.json");
+        if let Ok(mut data) = serde_json::from_reader::<BufReader<File>, Vec<Condition>>(BufReader::new(file));
+        if let Ok(mut vector) = DATA.lock();
+        then {
+            vector.append(&mut data);
         }
     }
     let start = SystemTime::now();
@@ -87,23 +90,20 @@ fn main() {
                 uptime: now.duration_since(start).unwrap().as_secs(),
                 air,
             };
-            let json: Vec<u8> = match DATA.lock() {
-                Ok(mut vector) => {
-                    if vector.len() > 5000 {
-                        vector.remove(0);
-                    }
-                    vector.push(condition);
-                    serde_json::to_vec(&*vector).unwrap()
+            let json: Result<Vec<u8>, std::sync::PoisonError<MutexGuard<Vec<Condition>>>> = DATA.lock().map(|mut vector| {
+                if vector.len() > 5000 {
+                    vector.remove(0);
                 }
-                _ => Vec::new()
-            };
-            if !json.is_empty() {
-                if let Ok(mut file) = File::create("db.json") {
-//                    println!("writing")
-                    file.write_all(&json).unwrap();
+                vector.push(condition);
+                serde_json::to_vec(&*vector).unwrap()
+            });
+            if_chain! {
+                if let Ok(j) = json;
+                if let Ok(mut file) = File::create("db.json");
+                then {
+                    file.write_all(&j).unwrap();
                 }
             }
-
 
             thread::sleep(Duration::from_secs(60 * 15));
         };
