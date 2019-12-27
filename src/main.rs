@@ -76,43 +76,44 @@ fn load_database() {
 lazy_static! {
     static ref START: SystemTime = SystemTime::now();
 }
-fn poll_condition() -> Condition {
+fn poll_condition() -> Result<Condition, Box<dyn std::error::Error>> {
     let air: i64 = if cfg!(target_os = "windows") {
         1
     } else {
         let output = Command::new("/usr/local/lib/airpi/pms5003-snmp")
             .arg("pm2.5")
-            .output()
-            .unwrap();
-        let string = std::str::from_utf8(&output.stdout).unwrap().trim_end();
-        string.parse().unwrap()
+            .output()?;
+        let string = std::str::from_utf8(&output.stdout)?.trim_end();
+        string.parse()?
     };
 
     let now = SystemTime::now();
-    Condition {
+    Ok(Condition {
         time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
         uptime: now.duration_since(*START).unwrap().as_secs(),
         air,
-    }
+    })
 }
 
 fn start_polling() {
-    thread::spawn({
+    thread::spawn(|| {
         loop {
-            let condition = poll_condition();
-            let json: Result<Vec<u8>, std::sync::PoisonError<MutexGuard<Vec<Condition>>>> = DATA.lock().map(|mut vector| {
-                if vector.len() > 3000 {
-                    vector.remove(0);
-                }
-                vector.push(condition);
-                serde_json::to_vec(&*vector).unwrap()
-            });
-            if_chain! {
-                if let Ok(j) = json;
+            let error = if_chain! {
+                if let Ok(condition) = poll_condition();
+                if let Ok(json) = DATA.lock().map(|mut vector| {
+                    if vector.len() > 3000 {
+                        vector.remove(0);
+                    }
+                    vector.push(condition);
+                    serde_json::to_vec(&*vector).unwrap()
+                });
                 if let Ok(mut file) = File::create("db.json");
                 then {
-                    file.write_all(&j).unwrap();
+                    file.write_all(&json)?
                 }
+            };
+            if let Err(err) = error {
+                println!("unable to poll, update or save condition {:?}", err);
             }
 
             thread::sleep(Duration::from_secs(60 * 15));
