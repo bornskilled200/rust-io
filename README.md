@@ -5,11 +5,6 @@ https://github.com/RigacciOrg/AirPi
 
 
 ## Building
-Install rust nightly
-```
-rustup default nightly:wq
-```
-
 Cross compiling from windows to raspberry pi (only 3 is tested)
 ```
 rustup target add armv7-unknown-linux-gnueabihf
