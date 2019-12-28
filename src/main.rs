@@ -21,12 +21,23 @@ use std::io::{BufReader, Write};
 use std::error::Error;
 use err_ctx::ResultExt;
 
-macro_rules ! log_error {
+macro_rules! log_error {
     ($exp: expr) => {
         if let Err(err) = $exp {
             println!("{:?}", err);
         }
-    }
+    };
+}
+
+macro_rules! simple_try {
+    ($exp: expr, $ctx: ident, $message: expr) => {
+        simple_try!($exp, $ctx, $message, 500);
+    };
+    ($exp: expr, $ctx: ident, $message: expr, $status: expr) => {
+        map_try!($exp, Err(err) => {
+            ThrusterError { context: $ctx, cause: Some(Box::new(err)), message: $message.into(), status: $status }
+        });
+    };
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -52,12 +63,8 @@ lazy_static! {
 
 #[middleware_fn]
 async fn conditions_handler(mut context: Context, _next: MiddlewareNext<Context>) -> MiddlewareResult<Context> {
-    let data = map_try!(DATA.lock(), Err(err) => {
-            ThrusterError { context, cause: Some(Box::new(err)), message: "lock data".into(), status: 500 }
-    });
-    let result = map_try!(serde_json::to_string(&*data), Err(err) => {
-            ThrusterError { context, cause: Some(Box::new(err)), message: "serialize data".into(), status: 500 }
-    });
+    let data = simple_try!(DATA.lock(), context, "lock data");
+    let result = simple_try!(serde_json::to_string(&*data), context, "serialize data");
     context.body(&format!("{}", result));
 
     Ok(context)
