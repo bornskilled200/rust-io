@@ -21,6 +21,14 @@ use std::io::{BufReader, Write};
 use std::error::Error;
 use err_ctx::ResultExt;
 
+macro_rules ! log_error {
+    ($exp: expr) => {
+        if let Err(err) = $exp {
+            println!("{:?}", err);
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct Condition {
     time: u64,
@@ -107,9 +115,7 @@ fn poll() -> Result<(), Box<dyn Error>> {
 fn start_polling() {
     thread::spawn(|| {
         loop {
-            if let Err(err) = poll() {
-                println!("{:?}", err);
-            }
+            log_error!(poll());
 
             thread::sleep(Duration::from_secs(60 * 15));
         };
@@ -117,9 +123,7 @@ fn start_polling() {
 }
 
 fn main() {
-    if let Err(err) = load_database() {
-        println!("{:?}", err);
-    }
+    log_error!(load_database());
     start_polling();
     let app: App<Request, Context> = {
         let mut app = App::<Request, Context>::new_basic();
