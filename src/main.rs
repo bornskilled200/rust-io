@@ -3,23 +3,18 @@
 #[macro_use]
 extern crate lazy_static;
 
-use serde::{Serialize, Deserialize};
-
 use thruster::{MiddlewareNext, MiddlewareReturnValue, MiddlewareResult};
 use thruster::{App, BasicContext as Context, Request, map_try};
 use thruster::thruster_middleware::send::file;
 use thruster::server::Server;
 use thruster::ThrusterServer;
 use thruster::thruster_proc::{async_middleware, middleware_fn};
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use std::time::Duration;
 use thruster::errors::ThrusterError;
-use std::sync::Mutex;
 use std::thread;
-use std::process::Command;
-use std::fs::File;
-use std::io::{BufReader, Write};
-use std::error::Error;
-use err_ctx::ResultExt;
+
+mod sensor;
+pub use sensor::{Condition, DATA, load_database, poll, get_conditions_json};
 
 macro_rules! log_error {
     ($exp: expr) => {
@@ -35,16 +30,9 @@ macro_rules! simple_try {
     };
     ($exp: expr, $ctx: ident, $message: expr, $status: expr) => {
         map_try!($exp, Err(err) => {
-            ThrusterError { context: $ctx, cause: Some(Box::new(err)), message: $message.into(), status: $status }
+            ThrusterError { context: $ctx, cause: Some(err.into()), message: $message.into(), status: $status }
         });
     };
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Condition {
-    time: u64,
-    uptime: u64,
-    air: i64,
 }
 
 #[middleware_fn]
@@ -57,15 +45,10 @@ async fn stylesheet(context: Context, _next: MiddlewareNext<Context>) ->  Middle
     Ok(file(context, "public/stylesheets/style.css"))
 }
 
-lazy_static! {
-    static ref DATA: Mutex<Vec<Condition>> = Mutex::new(Vec::new());
-}
-
 #[middleware_fn]
 async fn conditions_handler(mut context: Context, _next: MiddlewareNext<Context>) -> MiddlewareResult<Context> {
-    let data = simple_try!(DATA.lock(), context, "lock data");
-    let result = simple_try!(serde_json::to_string(&*data), context, "serialize data");
-    context.body(&format!("{}", result));
+    let json = simple_try!(get_conditions_json(), context, "error during get conditions");
+    context.body(&json);
 
     Ok(context)
 }
@@ -75,48 +58,6 @@ async fn four_oh_four(mut context: Context, _next: MiddlewareNext<Context>) -> M
     context.status(404);
     context.body("Whoops! That route doesn't exist!");
     Ok(context)
-}
-
-fn load_database() -> Result<(), Box<dyn Error>>{
-    let file = File::open("db.json").ctx("open database for read")?;
-    let mut data: Vec<Condition> = serde_json::from_reader(BufReader::new(file)).ctx("deseralize")?;
-    let mut vector = DATA.lock()?;
-    Ok(vector.append(&mut data))
-}
-
-lazy_static! {
-    static ref START: SystemTime = SystemTime::now();
-}
-fn poll_condition() -> Result<Condition, Box<dyn Error>> {
-    let air: i64 = if cfg!(target_os = "windows") {
-        1
-    } else {
-        let output = Command::new("/usr/local/lib/airpi/pms5003-snmp")
-            .arg("pm2.5")
-            .output()?;
-        let string = std::str::from_utf8(&output.stdout)?.trim_end();
-        string.parse()?
-    };
-
-    let now = SystemTime::now();
-    Ok(Condition {
-        time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
-        uptime: now.duration_since(*START).unwrap().as_secs(),
-        air,
-    })
-}
-
-fn poll() -> Result<(), Box<dyn Error>> {
-    let condition = poll_condition()?;
-    let json = DATA.lock().map(|mut vector| {
-        if vector.len() > 3000 {
-            vector.remove(0);
-        }
-        vector.push(condition);
-        serde_json::to_vec(&*vector).unwrap()
-    })?;
-    let mut file = File::create("db.json")?;
-    Ok(file.write_all(&json)?)
 }
 
 fn start_polling() {
