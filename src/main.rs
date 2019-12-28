@@ -2,8 +2,6 @@
 
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate if_chain;
 
 use serde::{Serialize, Deserialize};
 
@@ -15,11 +13,13 @@ use thruster::ThrusterServer;
 use thruster::thruster_proc::{async_middleware, middleware_fn};
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use thruster::errors::ThrusterError;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 use std::thread;
 use std::process::Command;
 use std::fs::File;
 use std::io::{BufReader, Write};
+use std::error::Error;
+use err_ctx::ResultExt;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Condition {
@@ -62,21 +62,17 @@ async fn four_oh_four(mut context: Context, _next: MiddlewareNext<Context>) -> M
     Ok(context)
 }
 
-fn load_database() {
-    if_chain! {
-        if let Ok(file) = File::open("db.json");
-        if let Ok(mut data) = serde_json::from_reader::<BufReader<File>, Vec<Condition>>(BufReader::new(file));
-        if let Ok(mut vector) = DATA.lock();
-        then {
-            vector.append(&mut data);
-        }
-    }
+fn load_database() -> Result<(), Box<dyn Error>>{
+    let file = File::open("db.json").ctx("open database for read")?;
+    let mut data: Vec<Condition> = serde_json::from_reader(BufReader::new(file)).ctx("deseralize")?;
+    let mut vector = DATA.lock()?;
+    Ok(vector.append(&mut data))
 }
 
 lazy_static! {
     static ref START: SystemTime = SystemTime::now();
 }
-fn poll_condition() -> Result<Condition, Box<dyn std::error::Error>> {
+fn poll_condition() -> Result<Condition, Box<dyn Error>> {
     let air: i64 = if cfg!(target_os = "windows") {
         1
     } else {
@@ -95,25 +91,24 @@ fn poll_condition() -> Result<Condition, Box<dyn std::error::Error>> {
     })
 }
 
+fn poll() -> Result<(), Box<dyn Error>> {
+    let condition = poll_condition()?;
+    let json = DATA.lock().map(|mut vector| {
+        if vector.len() > 3000 {
+            vector.remove(0);
+        }
+        vector.push(condition);
+        serde_json::to_vec(&*vector).unwrap()
+    })?;
+    let mut file = File::create("db.json")?;
+    Ok(file.write_all(&json)?)
+}
+
 fn start_polling() {
     thread::spawn(|| {
         loop {
-            let error = if_chain! {
-                if let Ok(condition) = poll_condition();
-                if let Ok(json) = DATA.lock().map(|mut vector| {
-                    if vector.len() > 3000 {
-                        vector.remove(0);
-                    }
-                    vector.push(condition);
-                    serde_json::to_vec(&*vector).unwrap()
-                });
-                if let Ok(mut file) = File::create("db.json");
-                then {
-                    file.write_all(&json)?
-                }
-            };
-            if let Err(err) = error {
-                println!("unable to poll, update or save condition {:?}", err);
+            if let Err(err) = poll() {
+                println!("{:?}", err);
             }
 
             thread::sleep(Duration::from_secs(60 * 15));
@@ -122,7 +117,9 @@ fn start_polling() {
 }
 
 fn main() {
-    load_database();
+    if let Err(err) = load_database() {
+        println!("{:?}", err);
+    }
     start_polling();
     let app: App<Request, Context> = {
         let mut app = App::<Request, Context>::new_basic();
