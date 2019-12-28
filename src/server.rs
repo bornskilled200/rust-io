@@ -44,7 +44,7 @@ async fn four_oh_four(mut context: Context, _next: MiddlewareNext<Context>) -> M
     Ok(context)
 }
 
-fn create_app() -> App<Request, Context> {
+pub fn create_app() -> App<Request, Context> {
     let mut app = App::<Request, Context>::new_basic();
     app.set404(async_middleware!(Context, [four_oh_four]));
     app.get("/", async_middleware!(Context, [index]));
