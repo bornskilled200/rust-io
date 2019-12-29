@@ -19,13 +19,14 @@ pub struct Condition {
     uptime: u64,
     air: i64,
 }
+static DATABASE_PATH: &str = "db.json";
 
 pub fn load_database() -> Result<(), Box<dyn Error>>{
-    let file = File::open("db.json").ctx("open database for read")?;
+    let file = File::open(DATABASE_PATH).ctx("open database for read")?;
     let mut data: VecDeque<Condition> = serde_json::from_reader(BufReader::new(file))
         .map_err(|e| -> Box<dyn Error> {
             println!("Unable to deserialize database, moving database. {:?}", e);
-            if let Err(err) = rename("db.json", "db2.json") {
+            if let Err(err) = rename(DATABASE_PATH, "db2.json") {
                 return Box::new(err)
             }
             Box::new(e)
@@ -69,7 +70,7 @@ pub fn poll() -> Result<(), Box<dyn Error>> {
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
-        .open("db.json")?;
+        .open(DATABASE_PATH)?;
     let original_size = file.metadata()?.len();
     let first_char;
     if original_size == 0 {
