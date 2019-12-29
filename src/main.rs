@@ -2,7 +2,9 @@
 extern crate lazy_static;
 
 use std::time::Duration;
-use std::thread;
+use tokio::task;
+use tokio::time;
+use tokio::prelude::*;
 
 mod sensor;
 pub use sensor::{Condition, DATA, load_database, poll, get_conditions_json};
@@ -18,19 +20,18 @@ macro_rules! log_error {
     };
 }
 
-fn start_polling() {
-    thread::spawn(|| {
-        loop {
-            log_error!(poll());
-
-            thread::sleep(Duration::from_secs(60 * 15));
-        };
-    });
+async fn start_polling() {
+    let mut interval = time::interval(Duration::from_secs(1));
+    loop {
+        interval.tick().await;
+        log_error!(poll());
+    }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     log_error!(load_database());
-    start_polling();
+    task::spawn(start_polling());
 
     start_server();
 }
