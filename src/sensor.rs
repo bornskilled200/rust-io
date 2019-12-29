@@ -7,9 +7,10 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::Mutex;
 use std::io::SeekFrom::End;
+use std::collections::VecDeque;
 
 lazy_static! {
-    pub static ref DATA: Mutex<Vec<Condition>> = Mutex::new(Vec::new());
+    pub static ref DATA: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -58,9 +59,9 @@ pub fn poll_condition() -> Result<Condition, Box<dyn Error>> {
 pub fn poll() -> Result<(), Box<dyn Error>> {
     let condition = poll_condition()?;
     let mut json = serde_json::to_string(&condition)?;
-    DATA.lock().map(|mut vector| {
+    DATA.lock().map(|mut vector: VecDeque<Condition>| {
         if vector.len() > 3000 {
-            vector.remove(0);
+            vector.pop_front();
         }
         vector.push(condition);
     })?;
