@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, rename};
 use std::error::Error;
-use std::io::{BufReader, Write, Read, Seek, SeekFrom};
+use std::io::{BufReader, Write, Seek};
 use err_ctx::ResultExt;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -21,7 +21,14 @@ pub struct Condition {
 
 pub fn load_database() -> Result<(), Box<dyn Error>>{
     let file = File::open("db.json").ctx("open database for read")?;
-    let mut data: Vec<Condition> = serde_json::from_reader(BufReader::new(file)).ctx("deseralize")?;
+    let mut data: Vec<Condition> = serde_json::from_reader(BufReader::new(file))
+        .map_err(|e| -> Box<dyn Error> {
+            println!("Unable to deserialize database {:?}", e);
+            if let Err(err) = rename("db.json", "db2.json") {
+                return Box::new(err)
+            }
+            Box::new(e)
+        })?;
     let mut vector = DATA.lock()?;
     Ok(vector.append(&mut data))
 }
