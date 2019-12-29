@@ -22,9 +22,9 @@ pub struct Condition {
 
 pub fn load_database() -> Result<(), Box<dyn Error>>{
     let file = File::open("db.json").ctx("open database for read")?;
-    let mut data: Vec<Condition> = serde_json::from_reader(BufReader::new(file))
+    let mut data: VecDeque<Condition> = serde_json::from_reader(BufReader::new(file))
         .map_err(|e| -> Box<dyn Error> {
-            println!("Unable to deserialize database {:?}", e);
+            println!("Unable to deserialize database, moving database. {:?}", e);
             if let Err(err) = rename("db.json", "db2.json") {
                 return Box::new(err)
             }
@@ -58,12 +58,12 @@ pub fn poll_condition() -> Result<Condition, Box<dyn Error>> {
 
 pub fn poll() -> Result<(), Box<dyn Error>> {
     let condition = poll_condition()?;
-    let mut json = serde_json::to_string(&condition)?;
-    DATA.lock().map(|mut vector: VecDeque<Condition>| {
+    let json = serde_json::to_string(&condition)?;
+    DATA.lock().map(|mut vector| {
         if vector.len() > 3000 {
             vector.pop_front();
         }
-        vector.push(condition);
+        vector.push_back(condition);
     })?;
 
     let mut file = OpenOptions::new()
@@ -71,14 +71,14 @@ pub fn poll() -> Result<(), Box<dyn Error>> {
         .create(true)
         .open("db.json")?;
     let original_size = file.metadata()?.len();
+    let first_char;
     if original_size == 0 {
-        json.insert(0, '[');
+        first_char = '[';
     } else {
         file.seek(End(-1))?;
-        json.insert(0, ',');
+        first_char = ',';
     }
-    json.push(']');
-    file.write_all(json.as_bytes())?;
+    write!(file, "{}{}]", first_char, json)?;
     Ok(())
 }
 
