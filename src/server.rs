@@ -31,7 +31,7 @@ async fn stylesheet(context: Context, _next: MiddlewareNext<Context>) ->  Middle
 
 #[middleware_fn]
 async fn conditions_handler(mut context: Context, _next: MiddlewareNext<Context>) -> MiddlewareResult<Context> {
-    let json = simple_try!(get_conditions_json(), context, "error during get conditions");
+    let json = simple_try!(get_conditions_json().await, context, "error during get conditions");
     context.body(&json);
 
     Ok(context)
