@@ -53,7 +53,7 @@ pub fn create_app() -> App<Request, Context> {
     app
 }
 
-pub fn start_server() {
+pub async fn start_server() {
     let server = Server::new(create_app());
-    server.start("0.0.0.0", 3000);
+    server.build("0.0.0.0", 3000).await;
 }

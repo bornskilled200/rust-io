@@ -32,5 +32,5 @@ async fn main() {
     log_error!(load_database().await);
     task::spawn(start_polling());
 
-    start_server();
+    start_server().await;
 }
