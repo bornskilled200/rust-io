@@ -6,7 +6,7 @@ use tokio::task;
 use tokio::time;
 
 mod sensor;
-pub use sensor::{Condition, DATA, load_database, poll, get_conditions_json};
+pub use sensor::{Condition, load_database, poll, get_conditions_json};
 
 mod server;
 pub use server::start_server;

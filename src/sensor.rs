@@ -30,7 +30,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
     match serde_json::from_slice(&contents) {
         Err(err) => {
             println!("Unable to deserialize database, moving database. {:?}", err);
-            if let Err(e) = rename(DATABASE_PATH, format!("db-{}.json", start)).await {
+            if let Err(e) = rename(DATABASE_PATH, format!("db-{}.json", start.duration_since(UNIX_EPOCH)?.as_secs())).await {
                 return Err(e.into());
             }
              Err(err.into())
@@ -43,7 +43,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
 }
 
 pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
-    let air: i64 = if cfg!(target_os = "windows") {
+    let air: i64 = if cfg!(any(target_os = "windows", target_os = "windows")) {
         1
     } else {
         let output = Command::new("/usr/local/lib/airpi/pms5003-snmp")
