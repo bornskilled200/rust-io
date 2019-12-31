@@ -20,7 +20,7 @@ macro_rules! log_error {
 }
 
 async fn start_polling() {
-    let mut interval = time::interval(Duration::from_secs(1));
+    let mut interval = time::interval(Duration::from_secs(60 * 15));
     loop {
         interval.tick().await;
         log_error!(poll().await);
