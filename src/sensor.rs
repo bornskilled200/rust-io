@@ -10,7 +10,8 @@ use std::collections::VecDeque;
 use tokio::prelude::*;
 
 lazy_static! {
-    pub static ref DATA: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
+    static ref DATA: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
+    static ref START: SystemTime = SystemTime::now();
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -22,13 +23,14 @@ pub struct Condition {
 static DATABASE_PATH: &str = "db.json";
 
 pub async fn load_database() -> Result<(), Box<dyn Error>>{
+    let start = *START;
     let mut file: File = File::open(DATABASE_PATH).await.ctx("open database for read")?;
     let mut contents = vec![];
     file.read_to_end(&mut contents).await?;
     match serde_json::from_slice(&contents) {
         Err(err) => {
             println!("Unable to deserialize database, moving database. {:?}", err);
-            if let Err(e) = rename(DATABASE_PATH, "db2.json").await {
+            if let Err(e) = rename(DATABASE_PATH, format!("db-{}.json", start)).await {
                 return Err(e.into());
             }
              Err(err.into())
@@ -40,9 +42,6 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
     }
 }
 
-lazy_static! {
-    static ref START: SystemTime = SystemTime::now();
-}
 pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
     let air: i64 = if cfg!(target_os = "windows") {
         1
