@@ -13,3 +13,4 @@ thruster = { git = "https://github.com/trezm/Thruster.git", features = ["thruste
 tokio = { version = ">=0.2.6", features = ["fs", "time", "process", "rt-core", "sync", "macros", "io-util"] }
 lazy_static = ">=1.4.0"
 err-ctx = ">=0.2.3"
+async-std = "1.4.0"
