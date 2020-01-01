@@ -26,9 +26,12 @@ static DATABASE_PATH: &str = "db.json";
 
 pub async fn load_database() -> Result<(), Box<dyn Error>>{
     let start = *START;
-    let mut file: File = File::open(DATABASE_PATH).await.ctx("open database for read")?;
-    let mut contents = vec![];
-    file.read_to_end(&mut contents).await?;
+    let mut contents = {
+        let mut file: File = File::open(DATABASE_PATH).await.ctx("open database for read")?;
+        let mut contents = vec![];
+        file.read_to_end(&mut contents).await?;
+        contents
+    };
     match serde_json::from_slice::<Vec<Condition>>(&contents) {
         Err(err) => {
             println!("Unable to deserialize database, moving database. {:?}", err);
@@ -91,13 +94,12 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
         .open(DATABASE_PATH)
         .await?;
     let original_size = file.metadata().await?.len();
-    let first_char;
-    if original_size == 0 {
-        first_char = '[';
+    let first_char = if original_size == 0 {
+        '['
     } else {
         file.seek(End(-("]".len() as i64))).await?;
-        first_char = ',';
-    }
+        ','
+    };
     file.write_all(format!("{}{}]", first_char, json).as_bytes()).await?;
     Ok(())
 }
