@@ -70,15 +70,18 @@ pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
     })
 }
 
-pub async fn poll() -> Result<(), Box<dyn Error>> {
-    let condition = poll_condition().await?;
-    let json = serde_json::to_string(&condition)?;
+async fn push_condition(condition: Condition) {
     let mut vector = DATA.lock().await;
     if vector.len() > MAX_CONDITIONS {
         vector.pop_front();
     }
     vector.push_back(condition);
-    drop(vector);
+}
+
+pub async fn poll() -> Result<(), Box<dyn Error>> {
+    let condition = poll_condition().await?;
+    let json = serde_json::to_string(&condition)?;
+    push_condition(condition).await;
 
     let mut file = OpenOptions::new()
         .write(true)
