@@ -14,7 +14,7 @@ lazy_static! {
     static ref START: SystemTime = SystemTime::now();
 }
 
-static MAX_CONDITIONS: usize = 2000;
+static MAX_CONDITIONS: usize = 500;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Condition {
