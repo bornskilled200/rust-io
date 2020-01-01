@@ -16,5 +16,11 @@ RUSTFLAGS="-C linker=arm-linux-gnueabihf-gcc" cargo build --release --target arm
 You can also just run this on raspberry pi
 ```
 cargo build --release
-./target/release/main
+./target/release/pms5003
+```
+
+## Benchmark
+
+```
+drill --benchmark benchmark.yml --stats
 ```
