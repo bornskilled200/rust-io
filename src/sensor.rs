@@ -109,9 +109,8 @@ pub async fn get_conditions_json() -> Result<Vec<u8>, Box<dyn Error>> {
             return Ok(json.clone());
         }
         let data = DATA.lock().await;
-        let mut output = serde_json::to_vec(&*data).ctx("Serializing data")?;
+        serde_json::to_writer(&mut *json, &*data).ctx("Serializing data")?;
         drop(data);
-        json.append(&mut output);
         Ok(json.clone())
     } else {
         Ok(json.clone())
