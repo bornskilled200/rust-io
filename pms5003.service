@@ -1,0 +1,10 @@
+Description=pms5003
+After=network.target
+
+[Service]
+Restart=always
+WorkingDirectory=/opt/pms5003
+ExecStart=/usr/local/bin/pms5003
+
+[Install]
+WantedBy=multi-user.target
