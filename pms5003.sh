@@ -16,6 +16,8 @@ CHDIR=/opt/pms5003
 NAME=pms5003
 DESC=pms5003
 
+. /lib/lsb/init-functions
+
 start_pms5003() {
   # Start the daemon/service
   #
