@@ -7,12 +7,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use std::io::SeekFrom::End;
 use std::collections::VecDeque;
-use async_std::sync::RwLock;
 use tokio::prelude::*;
 
 lazy_static! {
     static ref DATA: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
-    static ref JSON: RwLock<Vec<u8>> = RwLock::new(Vec::new());
     static ref START: SystemTime = SystemTime::now();
 }
 
@@ -81,7 +79,6 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     }
     vector.push_back(condition);
     drop(vector);
-    JSON.write().await.truncate(0);
 
     let mut file = OpenOptions::new()
         .write(true)
@@ -101,18 +98,6 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
 }
 
 pub async fn get_conditions_json() -> Result<Vec<u8>, Box<dyn Error>> {
-    let json = JSON.read().await;
-    if json.len() == 0 {
-        drop(json);
-        let mut json = JSON.write().await;
-        if json.len() != 0 {
-            return Ok(json.clone());
-        }
-        let data = DATA.lock().await;
-        serde_json::to_writer(&mut *json, &*data).ctx("Serializing data")?;
-        drop(data);
-        Ok(json.clone())
-    } else {
-        Ok(json.clone())
-    }
+    let data = DATA.lock().await;
+    Ok(serde_json::to_vec(&*data).ctx("Serializing data")?)
 }
