@@ -3,6 +3,7 @@ Description=pms5003
 After=network.target
 
 [Service]
+Type=exec
 Restart=always
 WorkingDirectory=/opt/pms5003
 ExecStart=/usr/local/bin/pms5003
