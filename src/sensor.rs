@@ -26,7 +26,7 @@ static DATABASE_PATH: &str = "db.json";
 
 pub async fn load_database() -> Result<(), Box<dyn Error>>{
     let start = *START;
-    let mut contents = {
+    let contents = {
         let mut file: File = File::open(DATABASE_PATH).await.ctx("open database for read")?;
         let mut contents = vec![];
         file.read_to_end(&mut contents).await?;
