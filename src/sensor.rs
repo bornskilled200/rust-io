@@ -11,13 +11,13 @@ use tokio::prelude::*;
 
 lazy_static! {
     static ref DATA: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
-    static ref JSON: Mutex<String> = Mutex::new("".into());
+    static ref JSON: Mutex<Vec<u8>> = Mutex::new(Vec::new());
     static ref START: SystemTime = SystemTime::now();
 }
 
 static MAX_CONDITIONS: usize = 2000;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Condition {
     time: u64,
     uptime: u64,
@@ -38,7 +38,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
             }
              Err(err.into())
         }
-        Ok(mut data) => {
+        Ok(data) => {
             let len = data.len();
             let start = if len > MAX_CONDITIONS {
                 len - MAX_CONDITIONS
@@ -46,7 +46,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
                 0
             };
             let mut vector = DATA.lock().await;
-            Ok(vector.append(&mut data[start..]))
+            Ok(vector.extend(data[start..].iter().cloned()))
         }
     }
 }
@@ -80,6 +80,7 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     }
     vector.push_back(condition);
     drop(vector);
+    JSON.lock().await.truncate(0);
 
     let mut file = OpenOptions::new()
         .write(true)
@@ -91,15 +92,19 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     if original_size == 0 {
         first_char = '[';
     } else {
-        file.seek(End(-"]".len() as i64)).await?;
+        file.seek(End(-("]".len() as i64))).await?;
         first_char = ',';
     }
     file.write_all(format!("{}{}]", first_char, json).as_bytes()).await?;
     Ok(())
 }
 
-pub async fn get_conditions_json() -> Result<String, Box<dyn Error>> {
-    let data = DATA.lock().await;
-    let json = serde_json::to_string(&*data).ctx("Serializing data")?;
-    Ok(json)
+pub async fn get_conditions_json() -> Result<Vec<u8>, Box<dyn Error>> {
+    let mut json = JSON.lock().await;
+    if json.len() == 0 {
+        let data = DATA.lock().await;
+        let mut output = serde_json::to_vec(&*data).ctx("Serializing data")?;
+        json.append(&mut output);
+    }
+    Ok(json.clone())
 }

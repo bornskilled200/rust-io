@@ -1,5 +1,5 @@
-use thruster::{MiddlewareNext, MiddlewareReturnValue, MiddlewareResult};
-use thruster::{App, BasicContext as Context, Request, map_try};
+use thruster::{MiddlewareNext, MiddlewareReturnValue, MiddlewareResult, Context};
+use thruster::{App, BasicContext, Request, map_try};
 use thruster::thruster_middleware::send::file;
 use thruster::server::Server;
 use thruster::ThrusterServer;
@@ -20,36 +20,36 @@ macro_rules! simple_try {
 }
 
 #[middleware_fn]
-async fn index(context: Context, _next: MiddlewareNext<Context>) ->  MiddlewareResult<Context> {
+async fn index(context: BasicContext, _next: MiddlewareNext<BasicContext>) ->  MiddlewareResult<BasicContext> {
     Ok(file(context, "public/index.html"))
 }
 
 #[middleware_fn]
-async fn stylesheet(context: Context, _next: MiddlewareNext<Context>) ->  MiddlewareResult<Context> {
+async fn stylesheet(context: BasicContext, _next: MiddlewareNext<BasicContext>) ->  MiddlewareResult<BasicContext> {
     Ok(file(context, "public/stylesheets/style.css"))
 }
 
 #[middleware_fn]
-async fn conditions_handler(mut context: Context, _next: MiddlewareNext<Context>) -> MiddlewareResult<Context> {
+async fn conditions_handler(mut context: BasicContext, _next: MiddlewareNext<BasicContext>) -> MiddlewareResult<BasicContext> {
     let json = simple_try!(get_conditions_json().await, context, "error during get conditions");
-    context.body(&json);
+    context.set_body(json);
 
     Ok(context)
 }
 
 #[middleware_fn]
-async fn four_oh_four(mut context: Context, _next: MiddlewareNext<Context>) -> MiddlewareResult<Context> {
+async fn four_oh_four(mut context: BasicContext, _next: MiddlewareNext<BasicContext>) -> MiddlewareResult<BasicContext> {
     context.status(404);
     context.body("Whoops! That route doesn't exist!");
     Ok(context)
 }
 
-pub fn create_app() -> App<Request, Context> {
-    let mut app = App::<Request, Context>::new_basic();
-    app.set404(async_middleware!(Context, [four_oh_four]));
-    app.get("/", async_middleware!(Context, [index]));
-    app.get("/stylesheets/style.css", async_middleware!(Context, [stylesheet]));
-    app.get("/conditions", async_middleware!(Context, [conditions_handler]));
+pub fn create_app() -> App<Request, BasicContext> {
+    let mut app = App::<Request, BasicContext>::new_basic();
+    app.set404(async_middleware!(BasicContext, [four_oh_four]));
+    app.get("/", async_middleware!(BasicContext, [index]));
+    app.get("/stylesheets/style.css", async_middleware!(BasicContext, [stylesheet]));
+    app.get("/conditions", async_middleware!(BasicContext, [conditions_handler]));
     app
 }
 
