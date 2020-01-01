@@ -11,8 +11,11 @@ use tokio::prelude::*;
 
 lazy_static! {
     static ref DATA: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
+    static ref JSON: Mutex<String> = Mutex::new("".into());
     static ref START: SystemTime = SystemTime::now();
 }
+
+static MAX_CONDITIONS: usize = 2000;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Condition {
@@ -27,7 +30,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
     let mut file: File = File::open(DATABASE_PATH).await.ctx("open database for read")?;
     let mut contents = vec![];
     file.read_to_end(&mut contents).await?;
-    match serde_json::from_slice(&contents) {
+    match serde_json::from_slice::<Vec<Condition>>(&contents) {
         Err(err) => {
             println!("Unable to deserialize database, moving database. {:?}", err);
             if let Err(e) = rename(DATABASE_PATH, format!("db-{}.json", start.duration_since(UNIX_EPOCH)?.as_secs())).await {
@@ -36,8 +39,14 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
              Err(err.into())
         }
         Ok(mut data) => {
+            let len = data.len();
+            let start = if len > MAX_CONDITIONS {
+                len - MAX_CONDITIONS
+            } else {
+                0
+            };
             let mut vector = DATA.lock().await;
-            Ok(vector.append(&mut data))
+            Ok(vector.append(&mut data[start..]))
         }
     }
 }
@@ -66,7 +75,7 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     let condition = poll_condition().await?;
     let json = serde_json::to_string(&condition)?;
     let mut vector = DATA.lock().await;
-    if vector.len() > 3000 {
+    if vector.len() > MAX_CONDITIONS {
         vector.pop_front();
     }
     vector.push_back(condition);
@@ -82,7 +91,7 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     if original_size == 0 {
         first_char = '[';
     } else {
-        file.seek(End(-1)).await?;
+        file.seek(End(-"]".len() as i64)).await?;
         first_char = ',';
     }
     file.write_all(format!("{}{}]", first_char, json).as_bytes()).await?;
