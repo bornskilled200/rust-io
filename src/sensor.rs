@@ -37,7 +37,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
             }
              Err(err.into())
         }
-        Ok(vector) => {
+        Ok(mut vector) => {
             let len = vector.len();
             let start = if len > MAX_CONDITIONS {
                 len - MAX_CONDITIONS
@@ -45,7 +45,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
                 0
             };
             let mut conditions = CONDITIONS.lock().await;
-            Ok(conditions.extend(vector[start..].iter().cloned()))
+            Ok(conditions.extend(vector.drain(start..)))
         }
     }
 }
