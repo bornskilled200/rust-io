@@ -10,7 +10,7 @@ use std::collections::VecDeque;
 use tokio::prelude::*;
 
 lazy_static! {
-    static ref DATA: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
+    static ref CONDITIONS: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
     static ref START: SystemTime = SystemTime::now();
 }
 
@@ -37,15 +37,15 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
             }
              Err(err.into())
         }
-        Ok(data) => {
-            let len = data.len();
+        Ok(vector) => {
+            let len = vector.len();
             let start = if len > MAX_CONDITIONS {
                 len - MAX_CONDITIONS
             } else {
                 0
             };
-            let mut vector = DATA.lock().await;
-            Ok(vector.extend(data[start..].iter().cloned()))
+            let mut conditions = CONDITIONS.lock().await;
+            Ok(conditions.extend(vector[start..].iter().cloned()))
         }
     }
 }
@@ -71,7 +71,7 @@ pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
 }
 
 async fn push_condition(condition: Condition) {
-    let mut vector = DATA.lock().await;
+    let mut vector = CONDITIONS.lock().await;
     if vector.len() > MAX_CONDITIONS {
         vector.pop_front();
     }
@@ -101,6 +101,6 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
 }
 
 pub async fn get_conditions_json() -> Result<Vec<u8>, Box<dyn Error>> {
-    let data = DATA.lock().await;
-    Ok(serde_json::to_vec(&*data).ctx("Serializing data")?)
+    let conditions = CONDITIONS.lock().await;
+    Ok(serde_json::to_vec(&*conditions).ctx("Serializing data")?)
 }
