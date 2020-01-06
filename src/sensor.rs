@@ -47,10 +47,9 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
             } else {
                 0
             };
-            let drain = vector.drain(start..);
             let mut conditions = CONDITIONS.lock().await;
-            conditions.reserve(drain.len());
-            Ok(conditions.extend(drain))
+            *conditions = vector.split_off(start).into();
+            Ok(())
         }
     }
 }
