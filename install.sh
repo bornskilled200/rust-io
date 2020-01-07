@@ -2,7 +2,7 @@
 
 cargo build --release
 sudo mkdir -p /usr/local/bin
-sudo service stop pms5003
+sudo service pms5003 stop
 sudo cp ./target/release/pms5003 /usr/local/bin/pms5003
 
 sudo mkdir -p /opt/pms5003
