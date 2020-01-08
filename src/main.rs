@@ -4,6 +4,9 @@ extern crate lazy_static;
 use std::time::Duration;
 use tokio::task;
 use tokio::time;
+use stream_cancel::{Tripwire};
+use futures::{select, FutureExt};
+use futures::future::Fuse;
 
 mod sensor;
 pub use sensor::{Condition, load_database, poll, get_conditions_json};
@@ -19,10 +22,13 @@ macro_rules! log_error {
     };
 }
 
-async fn start_polling() {
+async fn start_polling(mut tripwire: Fuse<Tripwire>) {
     let mut interval = time::interval(Duration::from_secs(60 * 15));
     loop {
-        interval.tick().await;
+        select! {
+            _ = tripwire => break,
+            _ = interval.tick().fuse() => {},
+        };
         log_error!(poll().await);
     }
 }
@@ -30,7 +36,8 @@ async fn start_polling() {
 #[tokio::main]
 async fn main() {
     log_error!(load_database().await);
-    task::spawn(start_polling());
+    let (trigger, tripwire) = Tripwire::new();
+    task::spawn(start_polling(tripwire.fuse()));
 
     start_server().await;
 }
