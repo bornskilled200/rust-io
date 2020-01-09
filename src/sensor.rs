@@ -8,8 +8,6 @@ use tokio::sync::{Mutex, RwLock};
 use std::io::SeekFrom::End;
 use std::collections::VecDeque;
 use tokio::prelude::*;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use tokio::task;
 
 lazy_static! {
