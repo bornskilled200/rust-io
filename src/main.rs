@@ -36,7 +36,7 @@ async fn start_polling(mut tripwire: Fuse<Tripwire>) {
 #[tokio::main]
 async fn main() {
     log_error!(load_database().await);
-    let (trigger, tripwire) = Tripwire::new();
+    let (_trigger, tripwire) = Tripwire::new();
     task::spawn(start_polling(tripwire.fuse()));
 
     start_server().await;
