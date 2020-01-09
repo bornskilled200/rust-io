@@ -112,7 +112,6 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
 }
 
 fn update_conditions_json() {
-    println!("updatin json");
     task::spawn(async {
         let json = {
             let conditions = CONDITIONS.lock().await;
