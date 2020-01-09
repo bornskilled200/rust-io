@@ -15,7 +15,6 @@ use tokio::task;
 lazy_static! {
     static ref CONDITIONS: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
     static ref JSON: RwLock<Vec<u8>> = RwLock::new(Vec::new());
-    static ref STALE: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     static ref START: SystemTime = SystemTime::now();
 }
 
@@ -89,11 +88,21 @@ async fn push_condition(condition: Condition) {
     vector.push_back(condition);
 }
 
+fn update_conditions_json() {
+    task::spawn(async {
+        let json = {
+            let conditions = CONDITIONS.lock().await;
+            serde_json::to_vec(&*conditions).ctx("Serializing data").unwrap()
+        };
+        *JSON.write().await = json;
+    });
+}
+
 pub async fn poll() -> Result<(), Box<dyn Error>> {
     let condition = poll_condition().await?;
     let json = serde_json::to_string(&condition)?;
     push_condition(condition).await;
-    STALE.store(true, Ordering::Release);
+    update_conditions_json();
 
     let mut file = OpenOptions::new()
         .write(true)
@@ -111,21 +120,7 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn update_conditions_json() {
-    task::spawn(async {
-        let json = {
-            let conditions = CONDITIONS.lock().await;
-            serde_json::to_vec(&*conditions).ctx("Serializing data").unwrap()
-        };
-        *JSON.write().await = json;
-    });
-}
-
 pub async fn get_conditions_json() -> Result<Vec<u8>, Box<dyn Error>> {
-    if STALE.compare_and_swap(true, false, Ordering::Acquire) {
-        update_conditions_json();
-    }
-
     let json = JSON.read().await;
     Ok(json.clone())
 }
