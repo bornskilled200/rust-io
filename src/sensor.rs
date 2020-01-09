@@ -4,7 +4,7 @@ use std::error::Error;
 use err_ctx::ResultExt;
 use tokio::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use std::io::SeekFrom::End;
 use std::collections::VecDeque;
 use tokio::prelude::*;
@@ -14,7 +14,7 @@ use tokio::task;
 
 lazy_static! {
     static ref CONDITIONS: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
-    static ref JSON: Mutex<Vec<u8>> = Mutex::new(Vec::new());
+    static ref JSON: RwLock<Vec<u8>> = RwLock::new(Vec::new());
     static ref STALE: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     static ref START: SystemTime = SystemTime::now();
 }
@@ -54,7 +54,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
             };
             let mut conditions = CONDITIONS.lock().await;
             *conditions = vector.split_off(start).into();
-            let mut json = JSON.lock().await;
+            let mut json = JSON.write().await;
             *json = contents;
             Ok(())
         }
@@ -117,7 +117,7 @@ fn update_conditions_json() {
             let conditions = CONDITIONS.lock().await;
             serde_json::to_vec(&*conditions).ctx("Serializing data").unwrap()
         };
-        *JSON.lock().await = json;
+        *JSON.write().await = json;
     });
 }
 
@@ -126,6 +126,6 @@ pub async fn get_conditions_json() -> Result<Vec<u8>, Box<dyn Error>> {
         update_conditions_json();
     }
 
-    let json = JSON.lock().await;
+    let json = JSON.read().await;
     Ok(json.clone())
 }
