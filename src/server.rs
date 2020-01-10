@@ -1,10 +1,11 @@
 use thruster::{MiddlewareNext, MiddlewareReturnValue, MiddlewareResult, Context};
 use thruster::{App, BasicContext, Request, map_try};
-use thruster::thruster_middleware::send::file;
 use thruster::server::Server;
 use thruster::ThrusterServer;
 use thruster::thruster_proc::{async_middleware, middleware_fn};
 use thruster::errors::ThrusterError;
+use tokio::fs::File;
+use tokio::io::{BufReader, AsyncReadExt};
 
 use crate::sensor::get_conditions_json;
 
@@ -19,14 +20,25 @@ macro_rules! simple_try {
     };
 }
 
+async fn file(mut context: BasicContext, file_name: &str) -> MiddlewareResult<BasicContext> {
+    let file = simple_try!(File::open(file_name).await, context, "opening file");
+    let mut buf_reader = BufReader::new(file);
+    let mut contents = Vec::new();
+
+    let _ = buf_reader.read_to_end(&mut contents).await;
+
+    context.set_body(contents);
+    Ok(context)
+}
+
 #[middleware_fn]
 async fn index(context: BasicContext, _next: MiddlewareNext<BasicContext>) ->  MiddlewareResult<BasicContext> {
-    Ok(file(context, "public/index.html"))
+    file(context, "public/index.html").await
 }
 
 #[middleware_fn]
 async fn stylesheet(context: BasicContext, _next: MiddlewareNext<BasicContext>) ->  MiddlewareResult<BasicContext> {
-    Ok(file(context, "public/stylesheets/style.css"))
+    file(context, "public/stylesheets/style.css").await
 }
 
 #[middleware_fn]
