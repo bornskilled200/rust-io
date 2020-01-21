@@ -23,7 +23,7 @@ macro_rules! log_error {
 }
 
 async fn start_polling(mut tripwire: Fuse<Tripwire>) {
-    let mut interval = time::interval(Duration::from_secs(60 * 15));
+    let mut interval = time::interval(Duration::from_secs(60 * 5));
     loop {
         select! {
             _ = tripwire => break,
