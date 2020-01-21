@@ -16,7 +16,7 @@ lazy_static! {
     static ref START: SystemTime = SystemTime::now();
 }
 
-static MAX_CONDITIONS: usize = 200;
+static MAX_TIME: u64 = 60 * 60 * 24 * 3;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Condition {
@@ -43,12 +43,11 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
              Err(err.into())
         }
         Ok(mut vector) => {
-            let len = vector.len();
-            let start = if len > MAX_CONDITIONS {
-                len - MAX_CONDITIONS
-            } else {
-                0
-            };
+            let minimum_time = start.duration_since(UNIX_EPOCH).unwrap().as_secs() - MAX_TIME;
+            let start = vector.iter()
+                .rev()
+                .position(|condition| condition.time < minimum_time)
+                .unwrap_or(0);
             let mut conditions = CONDITIONS.lock().await;
             *conditions = vector.split_off(start).into();
             let mut json = JSON.write().await;
@@ -79,8 +78,12 @@ pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
 }
 
 async fn push_condition(condition: Condition) {
+    let minimum_time = (*START).duration_since(UNIX_EPOCH).unwrap().as_secs() - MAX_TIME;
     let mut vector = CONDITIONS.lock().await;
-    if vector.len() > MAX_CONDITIONS {
+    while let Some(front) = vector.front() {
+        if front.time >= minimum_time {
+            break;
+        }
         vector.pop_front();
     }
     vector.push_back(condition);
