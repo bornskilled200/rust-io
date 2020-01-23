@@ -45,8 +45,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
         Ok(mut vector) => {
             let minimum_time = start.duration_since(UNIX_EPOCH).unwrap().as_secs() - MAX_TIME;
             let start = vector.iter()
-                .rev()
-                .position(|condition| condition.time < minimum_time)
+                .rposition(|condition| condition.time < minimum_time)
                 .unwrap_or(0);
             let mut conditions = CONDITIONS.lock().await;
             *conditions = vector.split_off(start).into();
