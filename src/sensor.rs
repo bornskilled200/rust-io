@@ -9,6 +9,7 @@ use std::io::SeekFrom::End;
 use std::collections::VecDeque;
 use tokio::prelude::*;
 use std::convert::TryInto;
+use stream_cancel::Tripwire;
 
 lazy_static! {
     pub static ref CONDITIONS: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
@@ -51,6 +52,23 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
             Ok(())
         }
     }
+}
+
+pub fn spawn_polling(tripwire: Tripwire) {
+    tokio::task::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60 * 5));
+        tokio::pin!(tripwire);
+        loop {
+            tokio::select! {
+                _tripped = &mut tripwire => { break },
+                _ = interval.tick() => {}
+            };
+
+            if let Err(err) = poll().await {
+                    println!("{:?}", err);
+            }
+        }
+    });
 }
 
 pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
