@@ -5,8 +5,6 @@ use std::time::Duration;
 use tokio::task;
 use tokio::time;
 use stream_cancel::{Tripwire};
-use futures::{select, FutureExt};
-use futures::future::Fuse;
 
 mod sensor;
 pub use sensor::{Condition, load_database, poll, get_conditions_json};
@@ -22,12 +20,13 @@ macro_rules! log_error {
     };
 }
 
-async fn start_polling(mut tripwire: Fuse<Tripwire>) {
+async fn start_polling(tripwire: Tripwire) {
     let mut interval = time::interval(Duration::from_secs(60 * 5));
+    tokio::pin!(tripwire);
     loop {
-        select! {
-            _ = tripwire => break,
-            _ = interval.tick().fuse() => {},
+        tokio::select! {
+            _tripped = &mut tripwire => { break },
+            _ = interval.tick() => {}
         };
         log_error!(poll().await);
     }
@@ -37,7 +36,7 @@ async fn start_polling(mut tripwire: Fuse<Tripwire>) {
 async fn main() {
     log_error!(load_database().await);
     let (_trigger, tripwire) = Tripwire::new();
-    task::spawn(start_polling(tripwire.fuse()));
+    task::spawn(start_polling(tripwire));
 
     start_server().await;
 }
