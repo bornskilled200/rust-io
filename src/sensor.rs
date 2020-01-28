@@ -108,10 +108,10 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub async fn get_conditions_json() -> Result<(Vec<u8>, String), Box<dyn Error>> {
+pub async fn get_conditions_json() -> Result<(Vec<u8>, Option<String>), Box<dyn Error>> {
     let conditions = CONDITIONS.lock().await;
     Ok((
         serde_json::to_vec(&*conditions).ctx("Serializing data")?,
-        conditions.back().map(|condition| (time::at_utc(time::Timespec::new(condition.time.try_into().unwrap(), 0)) + Duration::minutes(5)).rfc822().to_string()).unwrap_or("0".to_string()),
+        conditions.back().map(|condition| (time::at_utc(time::Timespec::new(condition.time.try_into().unwrap(), 0)) + Duration::minutes(5)).rfc822().to_string()),
     ))
 }

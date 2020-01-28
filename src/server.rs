@@ -46,7 +46,9 @@ async fn stylesheet(context: BasicHyperContext, _next: MiddlewareNext<BasicHyper
 async fn conditions_handler(mut context: BasicHyperContext, _next: MiddlewareNext<BasicHyperContext>) -> MiddlewareResult<BasicHyperContext> {
     let (json, expiration) = simple_try!(get_conditions_json().await, context, "error during get conditions");
     context.set_body(json);
-    context.headers.insert("Expires".into(), expiration);
+    if let Some(e) = expiration {
+        context.headers.insert("expires".into(), e);
+    }
 
     Ok(context)
 }
