@@ -4,7 +4,7 @@ use std::error::Error;
 use err_ctx::ResultExt;
 use tokio::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use std::io::SeekFrom::End;
 use std::collections::VecDeque;
 use tokio::prelude::*;
@@ -12,7 +12,7 @@ use std::convert::TryInto;
 use stream_cancel::Tripwire;
 
 lazy_static! {
-    pub static ref CONDITIONS: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
+    static ref CONDITIONS: RwLock<VecDeque<Condition>> = RwLock::new(VecDeque::new());
     static ref START: SystemTime = SystemTime::now();
 }
 
@@ -48,7 +48,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
             let start = vector.iter()
                 .rposition(|condition| condition.time < minimum_time)
                 .unwrap_or(0);
-            let mut conditions = CONDITIONS.lock().await;
+            let mut conditions = CONDITIONS.write().await;
             *conditions = vector.split_off(start).into();
             Ok(())
         }
@@ -94,7 +94,7 @@ pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
 
 async fn push_condition(condition: Condition) {
     let minimum_time = (*START).duration_since(UNIX_EPOCH).unwrap().as_secs() - MAX_TIME;
-    let mut vector = CONDITIONS.lock().await;
+    let mut vector = CONDITIONS.write().await;
     while let Some(front) = vector.front() {
         if front.time >= minimum_time {
             break;
@@ -126,7 +126,7 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
 }
 
 pub async fn get_conditions_json() -> Result<(Vec<u8>, Option<i64>), Box<dyn Error>> {
-    let conditions = CONDITIONS.lock().await;
+    let conditions = CONDITIONS.read().await;
     Ok((
         serde_json::to_vec(&*conditions).ctx("Serializing data")?,
         conditions.back().and_then(|condition| (condition.time + POLLING_TIME_SECONDS).try_into().ok())
