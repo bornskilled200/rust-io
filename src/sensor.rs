@@ -17,6 +17,7 @@ lazy_static! {
 }
 
 static MAX_TIME: u64 = 60 * 60 * 24 * 3;
+static POLLING_TIME_SECONDS: u64 = 5 * 60;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Condition {
@@ -56,7 +57,7 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
 
 pub fn spawn_polling(tripwire: Tripwire) {
     tokio::task::spawn(async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60 * 5));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(POLLING_TIME_SECONDS));
         tokio::pin!(tripwire);
         loop {
             tokio::select! {
@@ -128,6 +129,6 @@ pub async fn get_conditions_json() -> Result<(Vec<u8>, Option<i64>), Box<dyn Err
     let conditions = CONDITIONS.lock().await;
     Ok((
         serde_json::to_vec(&*conditions).ctx("Serializing data")?,
-        conditions.back().and_then(|condition| condition.time.try_into().ok())
+        conditions.back().and_then(|condition| (condition.time + POLLING_TIME_SECONDS).try_into().ok())
     ))
 }
