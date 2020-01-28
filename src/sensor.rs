@@ -4,15 +4,16 @@ use std::error::Error;
 use err_ctx::ResultExt;
 use tokio::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 use std::io::SeekFrom::End;
 use std::collections::VecDeque;
 use tokio::prelude::*;
-use tokio::task;
+use time;
+use time::Duration;
+use std::convert::TryInto;
 
 lazy_static! {
-    static ref CONDITIONS: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
-    static ref JSON: RwLock<Vec<u8>> = RwLock::new(Vec::new());
+    pub static ref CONDITIONS: Mutex<VecDeque<Condition>> = Mutex::new(VecDeque::new());
     static ref START: SystemTime = SystemTime::now();
 }
 
@@ -49,8 +50,6 @@ pub async fn load_database() -> Result<(), Box<dyn Error>>{
                 .unwrap_or(0);
             let mut conditions = CONDITIONS.lock().await;
             *conditions = vector.split_off(start).into();
-            let mut json = JSON.write().await;
-            *json = contents;
             Ok(())
         }
     }
@@ -88,21 +87,10 @@ async fn push_condition(condition: Condition) {
     vector.push_back(condition);
 }
 
-fn update_conditions_json() {
-    task::spawn(async {
-        let json = {
-            let conditions = CONDITIONS.lock().await;
-            serde_json::to_vec(&*conditions).ctx("Serializing data").unwrap()
-        };
-        *JSON.write().await = json;
-    });
-}
-
 pub async fn poll() -> Result<(), Box<dyn Error>> {
     let condition = poll_condition().await?;
     let json = serde_json::to_string(&condition)?;
     push_condition(condition).await;
-    update_conditions_json();
 
     let mut file = OpenOptions::new()
         .write(true)
@@ -120,7 +108,10 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub async fn get_conditions_json() -> Result<Vec<u8>, Box<dyn Error>> {
-    let json = JSON.read().await;
-    Ok(json.clone())
+pub async fn get_conditions_json() -> Result<(Vec<u8>, String), Box<dyn Error>> {
+    let conditions = CONDITIONS.lock().await;
+    Ok((
+        serde_json::to_vec(&*conditions).ctx("Serializing data")?,
+        conditions.back().map(|condition| (time::at_utc(time::Timespec::new(condition.time.try_into().unwrap(), 0)) + Duration::minutes(5)).rfc822().to_string()).unwrap_or("0".to_string()),
+    ))
 }
