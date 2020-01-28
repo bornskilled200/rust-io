@@ -8,7 +8,6 @@ use thruster::errors::ThrusterError;
 use tokio::fs::File;
 use tokio::io::{BufReader, AsyncReadExt};
 use time;
-use time::Duration;
 
 use crate::sensor::get_conditions_json;
 
