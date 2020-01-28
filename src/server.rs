@@ -7,6 +7,8 @@ use thruster::thruster_proc::{async_middleware, middleware_fn};
 use thruster::errors::ThrusterError;
 use tokio::fs::File;
 use tokio::io::{BufReader, AsyncReadExt};
+use time;
+use time::Duration;
 
 use crate::sensor::get_conditions_json;
 
@@ -47,7 +49,7 @@ async fn conditions_handler(mut context: BasicHyperContext, _next: MiddlewareNex
     let (json, expiration) = simple_try!(get_conditions_json().await, context, "error during get conditions");
     context.set_body(json);
     if let Some(e) = expiration {
-        context.headers.insert("expires".into(), e);
+        context.headers.insert("expires".into(),time::at_utc(time::Timespec::new(e, 0) + Duration::minutes(5)).rfc822().to_string());
     }
 
     Ok(context)
