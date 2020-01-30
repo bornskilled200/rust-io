@@ -93,7 +93,8 @@ pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
 }
 
 async fn push_condition(condition: Condition) {
-    let minimum_time = (*START).duration_since(UNIX_EPOCH).unwrap().as_secs() - MAX_TIME;
+    let now = SystemTime::now();
+    let minimum_time = now.duration_since(UNIX_EPOCH).unwrap().as_secs() - MAX_TIME;
     let mut vector = CONDITIONS.write().await;
     while let Some(front) = vector.front() {
         if front.time >= minimum_time {
