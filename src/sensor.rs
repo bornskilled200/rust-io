@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use tokio::fs::{File, OpenOptions, rename};
 use std::error::Error;
-use err_ctx::ResultExt;
+use anyhow::{Context, Result};
 use tokio::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
@@ -26,10 +26,10 @@ pub struct Condition {
 }
 static DATABASE_PATH: &str = "db.json";
 
-pub async fn load_database() -> Result<(), Box<dyn Error>>{
+pub async fn load_database() -> Result<()>{
     let start = *START;
     let contents = {
-        let mut file: File = File::open(DATABASE_PATH).await.ctx("open database for read")?;
+        let mut file: File = File::open(DATABASE_PATH).await.context("open database for read")?;
         let mut contents = vec![];
         file.read_to_end(&mut contents).await?;
         contents
@@ -125,10 +125,10 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub async fn get_conditions_json() -> Result<(Vec<u8>, Option<u64>), Box<dyn Error>> {
+pub async fn get_conditions_json() -> Result<(Vec<u8>, Option<u64>)> {
     let conditions = CONDITIONS.read().await;
     Ok((
-        serde_json::to_vec(&*conditions).ctx("Serializing data")?,
+        serde_json::to_vec(&*conditions).context("Serializing data")?,
         conditions.back().map(|condition| condition.time + POLLING_TIME_SECONDS)
     ))
 }
