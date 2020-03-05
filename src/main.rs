@@ -17,12 +17,13 @@ macro_rules! log_error {
     };
 }
 
-#[tokio::main]
-async fn main() {
+#[actix_rt::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (_trigger, tripwire) = Tripwire::new();
 
     log_error!(load_database().await);
     spawn_polling(tripwire);
 
-    start_server().await;
+    start_server().await?;
+    Ok(())
 }

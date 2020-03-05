@@ -8,7 +8,6 @@ use tokio::sync::RwLock;
 use std::io::SeekFrom::End;
 use std::collections::VecDeque;
 use tokio::prelude::*;
-use std::convert::TryInto;
 use stream_cancel::Tripwire;
 
 lazy_static! {
@@ -126,10 +125,10 @@ pub async fn poll() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub async fn get_conditions_json() -> Result<(Vec<u8>, Option<i64>), Box<dyn Error>> {
+pub async fn get_conditions_json() -> Result<(Vec<u8>, Option<u64>), Box<dyn Error>> {
     let conditions = CONDITIONS.read().await;
     Ok((
         serde_json::to_vec(&*conditions).ctx("Serializing data")?,
-        conditions.back().and_then(|condition| (condition.time + POLLING_TIME_SECONDS).try_into().ok())
+        conditions.back().map(|condition| condition.time + POLLING_TIME_SECONDS)
     ))
 }
