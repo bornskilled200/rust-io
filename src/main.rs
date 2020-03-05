@@ -1,13 +1,13 @@
 #[macro_use]
 extern crate lazy_static;
 
-use stream_cancel::Tripwire;
-
 mod sensor;
 pub use sensor::{Condition, load_database, spawn_polling, get_conditions_json};
 
 mod server;
 pub use server::start_server;
+use std::sync::Arc;
+use tokio::sync::Notify;
 
 macro_rules! log_error {
     ($exp: expr) => {
@@ -19,10 +19,10 @@ macro_rules! log_error {
 
 #[actix_rt::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (_trigger, tripwire) = Tripwire::new();
+    let notify = Arc::new(Notify::new());
 
     log_error!(load_database().await);
-    spawn_polling(tripwire);
+    spawn_polling(notify.clone());
 
     start_server().await?;
     Ok(())

@@ -4,11 +4,11 @@ use std::error::Error;
 use anyhow::{Context, Result};
 use tokio::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Notify};
 use std::io::SeekFrom::End;
 use std::collections::VecDeque;
 use tokio::prelude::*;
-use stream_cancel::Tripwire;
+use std::sync::Arc;
 
 lazy_static! {
     static ref CONDITIONS: RwLock<VecDeque<Condition>> = RwLock::new(VecDeque::new());
@@ -54,13 +54,12 @@ pub async fn load_database() -> Result<()>{
     }
 }
 
-pub fn spawn_polling(tripwire: Tripwire) {
+pub fn spawn_polling(notify: Arc<Notify>) {
     tokio::task::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(POLLING_TIME_SECONDS));
-        tokio::pin!(tripwire);
         loop {
             tokio::select! {
-                _tripped = &mut tripwire => { break },
+                _tripped = notify.notified() => { break },
                 _ = interval.tick() => {}
             };
 
