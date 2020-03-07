@@ -3,8 +3,8 @@
 <head>
   <title>Express</title>
   <link rel="stylesheet" href="/stylesheets/style.css">
-  <script src="https://cdn.plot.ly/plotly-basic-latest.min.js"></script>
-  <script src="https://cdn.plot.ly/plotly-basic-latest.min.js"></script>
+  <link rel="prefetch" href="/conditions">
+  <script src="/js/plotly-basic-latest.min.js"></script>
 </head>
 
 <body>
@@ -121,7 +121,7 @@
     }
 
     function updatePlot(results) {
-      fetch(`conditions?results=${results}`)
+      fetch(`conditions`)
         .then(response => response.json())
         .then(conditions => {
           const x = conditions.map(condition => new Date(condition.time * 1000));
