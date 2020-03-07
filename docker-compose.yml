@@ -4,6 +4,22 @@ services:
     image: nginx
     labels:
       - "traefik.http.routers.pms5003.rule=Host(`pms5003.pi.local`)"
+      - "traefik.http.routers.pms5003.tls"
+      - "traefik.docker.network=gateway"
     volumes:
       - ./public:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - default
+
+networks:
+  default:
+    external: 
+      name: gateway
+    networks:
+      - default
+
+networks:
+  default:
+    external: 
+      name: gateway

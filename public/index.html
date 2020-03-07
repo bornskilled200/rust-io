@@ -1,7 +1,67 @@
 <html>
 
 <head>
-  <title>Express</title>
+  <title>PMS5003</title>
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <link rel="manifest" href="/manifest.json">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+  <script>
+    function askPermission() {
+  return new Promise(function(resolve, reject) {
+    const permissionResult = Notification.requestPermission(function(result) {
+      resolve(result);
+    });
+
+    if (permissionResult) {
+      permissionResult.then(resolve, reject);
+    }
+  })
+  .then(function(permissionResult) {
+    if (permissionResult !== 'granted') {
+      throw new Error('We weren\'t granted permission.');
+    }
+  });
+}
+  
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    var rawData = window.atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+
+    for (var i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+  function subscribeUserToPush() {
+  return navigator.serviceWorker.register('sw.js')
+  .then(function(registration) {
+    const subscribeOptions = {
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(
+        'BPI4MJaK0ZVp-7d7non3_96mK1sjNr5UeZ5NgKtaRQl3-fpAd63fdxtWzo7GhKM4qT-2tceUs_lcnZYScMk5Xeo'
+      )
+    };
+
+    return registration.pushManager.subscribe(subscribeOptions);
+  })
+  .then(function(pushSubscription) {
+    console.log('Received PushSubscription: ', JSON.stringify(pushSubscription));
+    return pushSubscription;
+  });
+}
+
+  askPermission().then(subscribeUserToPush);
+  </script>
   <link rel="stylesheet" href="/stylesheets/style.css">
   <link rel="prefetch" href="/conditions">
   <script src="/js/plotly-basic-latest.min.js"></script>
@@ -39,6 +99,9 @@
         title: 'Air Quality (Higher is better)',
         yaxis: {
           side: 'right',
+        },
+        xaxis: {
+          range: [0,0]
         },
         legend: {"orientation": "h"}
       },
@@ -162,6 +225,9 @@
               title: 'Air Quality (Higher is better)',
               yaxis: {
                 side: 'right',
+              },
+              xaxis: {
+                range: [x[0], new Date()],
               },
               legend: {"orientation": "h"}
             },

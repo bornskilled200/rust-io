@@ -1,0 +1,13 @@
+{
+  "short_name": "PMS5003",
+  "name": "PMS5003",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone"
+}
