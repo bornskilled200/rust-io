@@ -17,13 +17,16 @@ macro_rules! log_error {
     };
 }
 
-#[actix_rt::main]
+#[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let notify = Arc::new(Notify::new());
 
     log_error!(load_database().await);
-    spawn_polling(notify.clone());
+    let poller = spawn_polling(notify.clone());
 
+    // actix-web handles sigint (ctrl + c)
     start_server().await?;
+    notify.notify_one();
+    log_error!(poller.await);
     Ok(())
 }

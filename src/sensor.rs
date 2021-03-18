@@ -7,8 +7,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::{RwLock, Notify};
 use std::io::SeekFrom::End;
 use std::collections::VecDeque;
-use tokio::prelude::*;
 use std::sync::Arc;
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncSeekExt;
+use tokio::io::AsyncWriteExt;
+use tokio::task::JoinHandle;
 
 lazy_static! {
     static ref CONDITIONS: RwLock<VecDeque<Condition>> = RwLock::new(VecDeque::new());
@@ -54,7 +57,7 @@ pub async fn load_database() -> Result<()>{
     }
 }
 
-pub fn spawn_polling(notify: Arc<Notify>) {
+pub fn spawn_polling(notify: Arc<Notify>) -> JoinHandle<()> {
     tokio::task::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(POLLING_TIME_SECONDS));
         loop {
@@ -67,7 +70,7 @@ pub fn spawn_polling(notify: Arc<Notify>) {
                     println!("{:?}", err);
             }
         }
-    });
+    })
 }
 
 pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
