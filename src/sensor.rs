@@ -32,7 +32,7 @@ static DATABASE_PATH: &str = "db.json";
 pub async fn load_database() -> Result<()>{
     let start = *START;
     let contents = {
-        let mut file: File = File::open(DATABASE_PATH).await.context("open database for read")?;
+        let mut file: File = File::open(DATABASE_PATH).await.context("open database to read")?;
         let mut contents = vec![];
         file.read_to_end(&mut contents).await?;
         contents
