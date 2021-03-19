@@ -12,6 +12,7 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncSeekExt;
 use tokio::io::AsyncWriteExt;
 use tokio::task::JoinHandle;
+use log::error;
 
 lazy_static! {
     static ref CONDITIONS: RwLock<VecDeque<Condition>> = RwLock::new(VecDeque::new());
@@ -39,7 +40,7 @@ pub async fn load_database() -> Result<()>{
     };
     match serde_json::from_slice::<Vec<Condition>>(&contents) {
         Err(err) => {
-            println!("Unable to deserialize database, moving database. {:?}", err);
+            error!("Unable to deserialize database, moving database. {:?}", err);
             if let Err(e) = rename(DATABASE_PATH, format!("db-{}.json", start.duration_since(UNIX_EPOCH)?.as_secs())).await {
                 return Err(e.into());
             }
@@ -66,9 +67,7 @@ pub fn spawn_poller(notify: Arc<Notify>) -> JoinHandle<()> {
                 _ = interval.tick() => {}
             };
 
-            if let Err(err) = poll().await {
-                    println!("{:?}", err);
-            }
+            poll().await.unwrap_or_else(|e| error!("{:?}", e));
         }
     })
 }
