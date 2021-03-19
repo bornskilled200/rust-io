@@ -2,7 +2,7 @@
 extern crate lazy_static;
 
 mod sensor;
-pub use sensor::{Condition, load_database, spawn_polling, get_conditions_json};
+pub use sensor::{Condition, load_database, spawn_poller, get_conditions_json};
 
 mod server;
 pub use server::start_server;
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let notify = Arc::new(Notify::new());
 
     load_database().await.unwrap_or_else(|e| error!("{:?}", e));
-    let poller = spawn_polling(notify.clone());
+    let poller = spawn_poller(notify.clone());
 
     // actix-web handles sigint (ctrl + c)
     start_server().await?;

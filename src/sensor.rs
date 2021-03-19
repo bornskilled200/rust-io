@@ -57,7 +57,7 @@ pub async fn load_database() -> Result<()>{
     }
 }
 
-pub fn spawn_polling(notify: Arc<Notify>) -> JoinHandle<()> {
+pub fn spawn_poller(notify: Arc<Notify>) -> JoinHandle<()> {
     tokio::task::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(POLLING_TIME_SECONDS));
         loop {
