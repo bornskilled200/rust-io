@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     load_database().await.unwrap_or_else(|e| error!("{:?}", e));
     let poller = spawn_poller(notify.clone());
 
-    // actix-web handles sigint (ctrl + c)
+    // actix-web handles SIGINT (ctrl + c) and SIGTERM
     start_server().await?;
     notify.notify_one();
     poller.await.unwrap_or_else(|e| error!("{:?}", e));
