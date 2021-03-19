@@ -8,25 +8,20 @@ mod server;
 pub use server::start_server;
 use std::sync::Arc;
 use tokio::sync::Notify;
-
-macro_rules! log_error {
-    ($exp: expr) => {
-        if let Err(err) = $exp {
-            println!("{:?}", err);
-        }
-    };
-}
+use simple_logger::SimpleLogger;
+use log::error;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    SimpleLogger::new().init().unwrap();
     let notify = Arc::new(Notify::new());
 
-    log_error!(load_database().await);
+    load_database().await.unwrap_or_else(|e| error!("{:?}", e));
     let poller = spawn_polling(notify.clone());
 
     // actix-web handles sigint (ctrl + c)
     start_server().await?;
     notify.notify_one();
-    log_error!(poller.await);
+    poller.await.unwrap_or_else(|e| error!("{:?}", e));
     Ok(())
 }
