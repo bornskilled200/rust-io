@@ -9,7 +9,11 @@ async fn conditions() -> Result<impl Responder> {
 
     Ok(HttpResponse::Ok()
         .body(json)
-        .with_header((header::EXPIRES, expiration.unwrap_or_else(|| { SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() }))))
+        .with_header((header::EXPIRES, expiration.unwrap_or_else(now))))
+}
+
+fn now() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
 }
 
 pub async fn start_server() -> std::io::Result<()> {
