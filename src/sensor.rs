@@ -73,7 +73,7 @@ pub fn spawn_polling(notify: Arc<Notify>) -> JoinHandle<()> {
     })
 }
 
-pub async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
+async fn poll_condition() -> Result<Condition, Box<dyn Error>> {
     let air: i64 = if cfg!(any(target_os = "windows", target_os = "windows")) {
         1
     } else {
@@ -106,7 +106,7 @@ async fn push_condition(condition: Condition) {
     vector.push_back(condition);
 }
 
-pub async fn poll() -> Result<(), Box<dyn Error>> {
+async fn poll() -> Result<(), Box<dyn Error>> {
     let condition = poll_condition().await?;
     let json = serde_json::to_string(&condition)?;
     push_condition(condition).await;
