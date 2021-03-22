@@ -9,7 +9,6 @@ use std::io::SeekFrom::End;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
-use tokio::io::AsyncSeekExt;
 use tokio::io::AsyncWriteExt;
 use tokio::task::JoinHandle;
 use log::error;

@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // actix-web handles SIGINT (ctrl + c) and SIGTERM
     start_server().await?;
-    notify.notify_one();
+    notify.notify();
     poller.await.unwrap_or_else(|e| error!("{:?}", e));
     Ok(())
 }
