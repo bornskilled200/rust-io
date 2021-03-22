@@ -21,7 +21,7 @@ pub async fn start_server() -> std::io::Result<()> {
             App::new()
                 .route("/conditions", web::get().to(conditions))
         })
-        .bind("0.0.0.0:3000")?
+        .bind("0.0.0.0:80")?
         .run()
         .await
 }
