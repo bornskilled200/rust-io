@@ -12,11 +12,10 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::task::JoinHandle;
 use log::error;
+use once_cell::sync::Lazy;
 
-lazy_static! {
-    static ref CONDITIONS: RwLock<VecDeque<Condition>> = RwLock::new(VecDeque::new());
-    static ref START: SystemTime = SystemTime::now();
-}
+static CONDITIONS: Lazy<RwLock<VecDeque<Condition>>> = Lazy::new(|| RwLock::new(VecDeque::new()));
+static START: Lazy<SystemTime> = Lazy::new(|| SystemTime::now());
 
 static MAX_TIME: u64 = 60 * 60 * 24 * 3;
 static POLLING_TIME_SECONDS: u64 = 5 * 60;

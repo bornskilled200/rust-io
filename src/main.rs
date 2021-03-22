@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate lazy_static;
-
 mod sensor;
 pub use sensor::{Condition, load_database, spawn_poller, get_conditions_json};
 
